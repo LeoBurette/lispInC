@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "*.template": "jinja",
+        "math.h": "c",
+        "mpc.h": "c",
+        "cstdio": "c",
+        "stdio.h": "c",
+        "stdlib.h": "c",
+        "util.h": "c",
+        "cstdlib": "c",
+        "type_traits": "c"
+    }
+}
