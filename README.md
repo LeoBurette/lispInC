@@ -8,6 +8,6 @@ cc -std=c99 -Wall src/parsing.c lib/mpc-master/mpc.c src/eval.c src/lval.c src/u
   * __lm__ for math (include un mpc) 
 
 # CURRENT
-[here](https://buildyourownlisp.com/chapter12_functions#function_calling)
+[here](https://buildyourownlisp.com/chapter14_strings)
 
-BONUS MARK !
+LOAD BUG

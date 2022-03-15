@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include "lenv.h"
+#include "../lib/mpc-master/mpc.h"
 
 lval* lval_num(double x){
     lval* v = malloc(sizeof(lval));
@@ -60,6 +61,14 @@ lval* lval_fun(lbuiltin builtin){
     return v;
 }
 
+lval* lval_str(char* str) {
+  lval* v = malloc(sizeof(lval));
+  v->type = LVAL_STR;
+  v->str = malloc(strlen(str) + 1);
+  strcpy(v->str, str);
+  return v;
+}
+
 lval* lval_lambda(lval* formals, lval* body){
     lval* v = malloc(sizeof(lval));
     v->type = LVAL_FUN;
@@ -84,6 +93,9 @@ void lval_del(lval* v){
                 lenv_del(v->env);
                 lval_del(v->formals);
             }
+            break;
+        case LVAL_STR:
+            free(v->str);
             break;
         case LVAL_ERR:
             free(v->err);
@@ -120,8 +132,12 @@ void lval_print(lval* v){
             }
             break;
         
+        case LVAL_STR:
+            lval_print_str(v);
+            break;
+
         case LVAL_ERR:
-            printf("%s", v->err);
+            printf("Error : %s", v->err);
             break;
 
         case LVAL_SYM:   printf("%s", v->sym); break;
@@ -141,6 +157,14 @@ void lval_print(lval* v){
     }
 }
 
+void lval_print_str(lval* v){
+    char* escaped = malloc(strlen(v->str)+1);
+    strcpy(escaped, v->str);
+    escaped = mpcf_escape(escaped);
+    printf("\"%s\"", escaped);
+    free(escaped);
+}
+
 lval* lval_copy(lval* v){
     lval* next = malloc(sizeof(lval));
     next->type = v->type;
@@ -155,6 +179,10 @@ lval* lval_copy(lval* v){
         case LVAL_SYM:
             next->sym = malloc(strlen(v->sym)+1);
             strcpy(next->sym, v->sym);
+            break;
+        case LVAL_STR:
+            next->str = malloc(strlen(v->str) + 1);
+            strcpy(next->str, v->str);
             break;
         case LVAL_SEXPR:
         case LVAL_QEXPR:
@@ -208,6 +236,40 @@ lval* lval_pop(lval* v, int i){
     return x;
 }
 
+int lval_equal(lval* a, lval* b){
+    if(a->type != b->type){return 0;}
+
+    switch (a->type){
+    case LVAL_NUM:
+        return a->num == b->num;
+    case LVAL_ERR:
+        return strcmp(a->err, b->err);
+    case LVAL_SYM: 
+        return (strcmp(a->sym, b->sym) == 0);
+    case LVAL_FUN:
+        if (a->builtin || b->builtin) {
+            return a->builtin == b->builtin;
+        } else {
+            return lval_equal(a->formals, b->formals) && lval_equal(a->body, b->body);
+        }
+    case LVAL_STR:
+        return (strcmp(a->str, b->str)==0);
+    case LVAL_QEXPR:
+    case LVAL_SEXPR:
+        if (a->count != b->count) { 
+            return 0; 
+        }
+        for (int i = 0; i < a->count; i++) {
+            if (!lval_equal(a->cell[i], b->cell[i])) { 
+                return 0; 
+            }
+        }
+        
+        return 1;
+    }
+    return 0;
+}
+
 lval* lval_take(lval* v, int i){
     lval* x = lval_pop(v, i);
     lval_del(v);
@@ -222,6 +284,7 @@ char* ltype_name(int t) {
     case LVAL_SYM: return "Symbol";
     case LVAL_SEXPR: return "S-Expression";
     case LVAL_QEXPR: return "Q-Expression";
+    case LVAL_STR: return "String";
     default: return "Unknown";
   }
 }

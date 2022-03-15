@@ -9,7 +9,9 @@ lval* single_eval_op(lval* x, char* operator);
 
 lval* eval(mpc_ast_t* t);
 lval* lval_read(mpc_ast_t* t);
+lval* lval_read_str(mpc_ast_t* t);
 lval* lval_read_num(mpc_ast_t* t);
+lval* lval_read_bool(mpc_ast_t* t);
 lval* lval_eval_sexpr(lval* v, lenv* e);
 lval* lval_eval(lval* v, lenv* e);
 

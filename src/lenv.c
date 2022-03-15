@@ -136,6 +136,14 @@ lval* builtin_op(lenv* e, lval* a, char* op){
             x->num = (x->num < y->num)?x->num:y->num;
         }else if(strcmp(op, "max")==0){
              x->num = (x->num > y->num)?x->num:y->num;
+        }else if(strcmp(op, ">")==0){
+            return lval_num(x->num > y->num);
+        }else if(strcmp(op, "<")==0){
+            return lval_num(x->num < y->num);
+        }else if(strcmp(op, ">=")==0){
+            return lval_num(x->num >= y->num);
+        }else if(strcmp(op, "<=")==0){
+            return lval_num(x->num <= y->num);
         }else{
             x = lval_err("Error: Invalid Number!\n");
         }
@@ -147,7 +155,7 @@ lval* builtin_op(lenv* e, lval* a, char* op){
     return x;
 }
 
-lval* builtin_head(lenv* e, lval* a){
+lval* builtin_head_qexpr(lenv* e, lval* a){
     LASSERT(a, a->count==1, "Function 'head' passed too many arguments! Got %i, excepted %i", a->count, 1);
 
     LASSERT(a, a->cell[0]->type == LVAL_QEXPR,"Function 'head' passed incorrect type! Got %s, excepted %s", ltype_name(a->cell[0]->type), ltype_name(LVAL_QEXPR));
@@ -162,7 +170,34 @@ lval* builtin_head(lenv* e, lval* a){
     return v;
 }
 
-lval* builtin_tail(lenv* e, lval* a){
+lval* builtin_head_string(lenv* e, lval* a){
+    LASSERT(a, a->count==1, "Function 'head' passed too many arguments! Got %i, excepted %i", a->count, 1);
+
+    LASSERT(a, a->cell[0]->type == LVAL_STR,"Function 'head' passed incorrect type! Got %s, excepted %s", ltype_name(a->cell[0]->type), ltype_name(LVAL_STR));
+
+    LASSERT(a, strlen(a->cell[0]->str)!=0, "Function 'head' passed \"\"!");
+
+    lval* v = lval_str("a");
+    v->str[0] = a->cell[0]->str[0];
+
+    lval_del(a);
+    return v;
+}
+
+lval* builtin_head(lenv* e, lval* a){
+    if(a->cell[0]->type == LVAL_QEXPR){
+        return builtin_head_qexpr(e, a);
+    }
+    
+    if(a->cell[0]->type == LVAL_STR){
+        return builtin_head_string(e, a);
+    }
+
+    return lval_err("head need %s or %s, get %s.", ltype_name(LVAL_QEXPR), ltype_name(LVAL_STR), ltype_name(a->cell[0]->type));
+}
+
+
+lval* builtin_tail_qexpr(lenv* e, lval* a){
     LASSERT(a, a->count == 1,"Function 'tail' passed too many arguments!");
     LASSERT(a, a->cell[0]->type == LVAL_QEXPR, "Function 'tail' passed incorrect type!");
     LASSERT(a, a->cell[0]->count != 0,"Function 'tail' passed {}!");
@@ -171,6 +206,29 @@ lval* builtin_tail(lenv* e, lval* a){
 
     lval_del(lval_pop(v, 0));
     return v;
+
+}
+
+lval* builtin_tail_string(lenv* e, lval* a){
+    LASSERT(a, a->count == 1,"Function 'tail' passed too many arguments!");
+    LASSERT(a, a->cell[0]->type == LVAL_STR, "Function 'tail' passed incorrect type!");
+    LASSERT(a, strlen(a->cell[0]->str)!=0,"Function 'tail' passed \"\"!");
+
+    lval* v = lval_str(&a->cell[0]->str[1]);
+    lval_del(a);
+    return v;
+}
+
+lval* builtin_tail(lenv* e, lval* a){
+    if(a->cell[0]->type == LVAL_QEXPR){
+        return builtin_tail_qexpr(e, a);
+    }
+    
+    if(a->cell[0]->type == LVAL_STR){
+        return builtin_tail_string(e, a);
+    }
+
+    return lval_err("tail need %s or %s, get %s.", ltype_name(LVAL_QEXPR), ltype_name(LVAL_STR), ltype_name(a->cell[0]->type));
 }
 
 lval* builtin_list(lenv* e, lval* a){
@@ -188,9 +246,24 @@ lval* builtin_eval(lenv* e, lval* a){
     return lval_eval(x, e);
 }
 
-lval* builtin_join(lenv* e, lval* a){
+lval* builtin_join_string(lenv* e, lval* a){
     for (int i = 0; i < a->count; i++) {
-        LASSERT(a, a->cell[i]->type == LVAL_QEXPR,"Function 'join' passed incorrect type.");
+        LASSERT(a, (a->cell[i]->type == LVAL_STR),"Function 'join' passed incorrect type.");
+    }
+
+    lval* x = lval_pop(a, 0);
+
+    while(a->count){
+        strcat(x->str, lval_pop(a, 0)->str);
+    }
+
+    lval_del(a);
+    return x;
+}
+
+lval* builtin_join_qexpr(lenv* e, lval* a){
+    for (int i = 0; i < a->count; i++) {
+        LASSERT(a, (a->cell[i]->type == LVAL_QEXPR),"Function 'join' passed incorrect type.");
     }
 
     lval* x = lval_pop(a, 0);
@@ -201,6 +274,18 @@ lval* builtin_join(lenv* e, lval* a){
 
     lval_del(a);
     return x;
+}
+
+lval* builtin_join(lenv* e, lval* a){
+    if(a->cell[0]->type == LVAL_QEXPR){
+        return builtin_join_qexpr(e, a);
+    }
+    
+    if(a->cell[0]->type == LVAL_STR){
+        return builtin_join_string(e, a);
+    }
+
+    return lval_err("Join need %s or %s, get %s.", ltype_name(LVAL_QEXPR), ltype_name(LVAL_STR), ltype_name(a->cell[0]->type));
 }
 
 
@@ -299,6 +384,71 @@ lval* builtin_mod(lenv* e, lval* a){
     return builtin_op(e, a, "%");
 }
 
+lval* builtin_greater(lenv* e, lval* a){
+    return builtin_op(e, a, ">");
+}
+lval* builtin_less(lenv* e, lval* a){
+    return builtin_op(e, a, "<");
+}
+
+lval* builtin_equals(lenv* e, lval* a){
+    return builtin_comp(e, a, "==");
+}
+
+lval* builtin_comp(lenv* e, lval* a, char* op){
+    LASSERT_NUM(a, 2);
+    if(strstr(op, "==")){
+        return lval_num(lval_equal(a->cell[0], a->cell[1]));
+    }else if(strstr(op, "!=")){
+        return lval_num(!lval_equal(a->cell[0], a->cell[1]));
+    }else if(strstr(op, "||")){
+        return lval_num(lval_eval(a->cell[0], e)->num || lval_eval(a->cell[1], e)->num);
+    }else if(strstr(op, "&&")){
+        return lval_num(lval_eval(a->cell[0], e)->num && lval_eval(a->cell[1], e)->num);
+    }
+    return lval_err("Incorect symbol.");
+}
+lval* builtin_and(lenv* e, lval* a){
+    return builtin_comp(e, a, "&&");
+}
+lval* builtin_or(lenv* e, lval* a){
+    return builtin_comp(e, a, "||");
+}
+lval* builtin_not(lenv* e, lval* a){
+    return lval_num(!a->cell[0]->num);
+}
+
+lval* builtin_inequals(lenv* e, lval* a){
+    return builtin_comp(e, a, "!=");
+}
+
+lval* builtin_lessequals(lenv* e, lval* a){
+    return builtin_op(e, a, "<=");
+}
+
+lval* builtin_greaterequals(lenv* e, lval* a){
+    return builtin_op(e, a, ">=");
+}
+
+lval* builtin_if(lenv* e, lval* a){
+    LASSERT_NUM(a, 3);
+    LASSERT_TYPE("if", a, 0, LVAL_NUM);
+    LASSERT_TYPE("if", a, 1, LVAL_QEXPR);
+    LASSERT_TYPE("if", a, 2, LVAL_QEXPR);
+
+    lval* x;
+    if(a->cell[0]->num){
+        a->cell[1]->type = LVAL_SEXPR;
+        x = lval_eval(lval_pop(a, 1), e);
+    }else{
+        a->cell[2]->type = LVAL_SEXPR;
+        x = lval_eval(lval_pop(a, 2), e);
+    }
+
+    lval_del(a);
+    return x;
+}
+
 lval* builtin_exit(lenv*e, lval* a){
     exit(EXIT_SUCCESS);
 }
@@ -336,6 +486,74 @@ lval* builtin_fun(lenv* e, lval* a){
     return next;
 }
 
+lval* builtin_load(lenv* e, lval* a) {
+  LASSERT_NUM(a, 1);
+  LASSERT_TYPE("load", a, 0, LVAL_STR);
+  
+  /* Parse File given by string name */
+  mpc_result_t r;
+  if (mpc_parse_contents(a->cell[0]->str, Lisply, &r)) {
+    
+    /* Read contents */
+    lval* expr = lval_read(r.output);
+    mpc_ast_delete(r.output);
+
+    /* Evaluate each Expression */
+    while (expr->count) {
+      lval* x = lval_eval(lval_pop(expr, 0), e);
+      /* If Evaluation leads to error print it */
+      if (x->type == LVAL_ERR) { lval_println(x); }
+      lval_del(x);
+    }
+    
+    /* Delete expressions and arguments */
+    lval_del(expr);    
+    lval_del(a);
+    
+    /* Return empty list */
+    return lval_sexpr();
+    
+  } else {
+    /* Get Parse Error as String */
+    char* err_msg = mpc_err_string(r.error);
+    mpc_err_delete(r.error);
+    
+    /* Create new error message using it */
+    lval* err = lval_err("Could not load Library %s", err_msg);
+    free(err_msg);
+    lval_del(a);
+    
+    /* Cleanup and return error */
+    return err;
+  }
+}
+
+lval* builtin_print(lenv* e, lval* a) {
+
+  /* Print each argument followed by a space */
+  for (int i = 0; i < a->count; i++) {
+    lval_print(a->cell[i]); putchar(' ');
+  }
+
+  /* Print a newline and delete arguments */
+  putchar('\n');
+  lval_del(a);
+
+  return lval_sexpr();
+}
+
+lval* builtin_error(lenv* e, lval* a) {
+  LASSERT_NUM(a, 1);
+  LASSERT_TYPE("error", a, 0, LVAL_STR);
+
+  /* Construct Error from first argument */
+  lval* err = lval_err(a->cell[0]->str);
+
+  /* Delete arguments and return */
+  lval_del(a);
+  return err;
+}
+
 lval* lval_join(lval* x, lval* y){
     while(y->count){
         x = lval_add(x, lval_pop(y, 0));
@@ -367,6 +585,9 @@ void lenv_add_builtins(lenv* e) {
     lenv_add_builtin(e, "lamb", builtin_lambda);
     lenv_add_builtin(e, "fun", builtin_fun);
     lenv_add_builtin(e, "=",   builtin_put);
+    lenv_add_builtin(e, "print",   builtin_print);
+    lenv_add_builtin(e, "error",   builtin_error);
+    lenv_add_builtin(e, "load", builtin_load);
 
     lenv_add_builtin(e, "+", builtin_add);
     lenv_add_builtin(e, "add", builtin_add);
@@ -378,10 +599,27 @@ void lenv_add_builtins(lenv* e) {
     lenv_add_builtin(e, "div", builtin_div);
     lenv_add_builtin(e, "%", builtin_mod);
     lenv_add_builtin(e, "mod", builtin_mod);
+    lenv_add_builtin(e, "<", builtin_less);
+    lenv_add_builtin(e, ">", builtin_greater);
+    lenv_add_builtin(e, "==", builtin_equals);
+    lenv_add_builtin(e, "!=", builtin_inequals);
+    lenv_add_builtin(e, "<=", builtin_lessequals);
+    lenv_add_builtin(e, ">=", builtin_greaterequals);
+    lenv_add_builtin(e, "if", builtin_if);
+    lenv_add_builtin(e, "&&", builtin_and);
+    lenv_add_builtin(e, "||", builtin_or);
+    lenv_add_builtin(e, "!", builtin_not);
 
     // add_lisply_fun(e, "fun", "def {fun} (\\ {args body} {def (head args) (\\ (tail args) body)})");
-    add_lisply_fun(e, "unpack", "fun {unpack f xs} {eval (join (list f) xs)}");
-    add_lisply_fun(e, "pack", "fun {pack f & xs} {f xs}");
+    // add_lisply_fun(e, "unpack", "fun {unpack f xs} {eval (join (list f) xs)}");
+    // add_lisply_fun(e, "pack", "fun {pack f & xs} {f xs}");
+    // add_lisply_fun(e, "len", "(fun {len l} { if (== l {}) {0} {+ 1 (len (tail l))} })");
+    // add_lisply_fun(e, "reverse", "(fun {reverse l} { if (== l {}) {{}} {join (reverse (tail l)) (head l)} })");
+    // add_lisply_fun(e, "getElement", "fun {getElement i l} { if (> i (- (len l) 1)) { {} }{ if (== i 0) { head l } { getElement (tail l) (- i 1) } } }");
+    // add_lisply_fun(e, "isPresent", "fun {isPresent i l} { if (== l {}){ 0 }{ if (== (head l) (list i)){ 1 }{ (isPresent i (tail l)) } } }");
+    // add_lisply_fun(e, "last", "fun {last l} {head (reverse l)}");
+
+    add_lisply_fun(e, "stdlib", "load \"./stdLib.lisplib\"");
 }
 
 void add_lisply_fun(lenv* e, char* name, char* command){

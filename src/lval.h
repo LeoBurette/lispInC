@@ -16,6 +16,8 @@ struct lval {
     char* err;
 
     char* sym;
+    
+    char* str;
 
     lbuiltin builtin;
 
@@ -27,7 +29,7 @@ struct lval {
     struct lval** cell; 
 };
 
-enum lval_type { LVAL_NUM, LVAL_ERR, LVAL_SYM, LVAL_SEXPR, LVAL_QEXPR, LVAL_FUN } ;
+enum lval_type { LVAL_NUM, LVAL_ERR, LVAL_SYM, LVAL_SEXPR, LVAL_QEXPR, LVAL_FUN, LVAL_STR} ;
 char* ltype_name(int t);
 
 lval* lval_num(double x);
@@ -37,10 +39,12 @@ lval* lval_sexpr(void);
 lval* lval_qexpr(void);
 lval* lval_fun(lbuiltin builtin);
 lval* lval_lambda(lval* formals, lval* body);
+lval* lval_str(char* str);
 
 lval* lval_add(lval* v, lval* x);
 
 void lval_print(lval* v);
+void lval_print_str(lval* v);
 void lval_del(lval* v);
 void lval_expr_print(lval* v, char open, char close);
 void lval_println(lval* v);
@@ -49,5 +53,7 @@ lval* lval_copy(lval* v);
 
 lval* lval_pop(lval* v, int i);
 lval* lval_take(lval* v, int i);
+
+int lval_equal(lval* a, lval* b);
 
 #endif

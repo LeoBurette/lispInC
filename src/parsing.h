@@ -31,6 +31,8 @@ mpc_parser_t* Symbol;
 mpc_parser_t* Sexpr;
 mpc_parser_t* Qexpr;
 mpc_parser_t* Expression;
+mpc_parser_t* Lstring;
+mpc_parser_t* Comment;
 
 void setLisply();
 void cleanLisply();

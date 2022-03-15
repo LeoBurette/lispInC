@@ -42,8 +42,15 @@ lval* lval_read_num(mpc_ast_t* t){
     return errno != ERANGE ? lval_num(x) : lval_err("Error: Invalid Number!\n");
 }
 
+lval* lval_read_bool(mpc_ast_t* t){
+    double x = atoi(t->contents);
+    return lval_num(x);
+}
+
 lval* lval_read(mpc_ast_t* t) {
+    if (strstr(t->tag, "lstring")) { return lval_read_str(t);};
     if (strstr(t->tag, "number")) { return lval_read_num(t); }
+    if (strstr(t->tag, "lbool")) {return lval_read_bool(t); }
     if (strstr(t->tag, "symbol")) { return lval_sym(t->contents); }
 
     lval* x = NULL;
@@ -57,10 +64,26 @@ lval* lval_read(mpc_ast_t* t) {
         if (strcmp(t->children[i]->contents, "{") == 0) { continue; }
         if (strcmp(t->children[i]->contents, "}") == 0) { continue; }
         if (strcmp(t->children[i]->tag,  "regex") == 0) { continue; }
+        if (strstr(t->children[i]->tag, "comment")) { continue; }
         x = lval_add(x, lval_read(t->children[i]));
     }
 
     return x;
+}
+
+lval* lval_read_str(mpc_ast_t* t){
+    
+    t->contents[strlen(t->contents)-1] = '\0';
+    
+    char* unescaped = malloc(strlen(t->contents+1)+1);
+    strcpy(unescaped, t->contents+1);
+    
+    unescaped = mpcf_unescape(unescaped);
+    
+    lval* str = lval_str(unescaped);
+    
+    free(unescaped);
+    return str;
 }
 
 lval* eval(mpc_ast_t* t){
@@ -100,12 +123,11 @@ lval* lval_eval_sexpr(lval* v, lenv* e){
     if (v->count == 0) { 
         return v; 
     }
+    if (v->count == 1 && v->cell[0]->builtin != builtin_exit) { 
+        return lval_eval(lval_take(v, 0), e); 
+    }
 
     lval* f = lval_pop(v, 0);
-
-    // if (v->count == 1 && f->builtin != builtin_exit) { 
-    //     return lval_take(v, 0); 
-    // }
 
     if (f->type != LVAL_FUN) {
         lval_del(f); 
